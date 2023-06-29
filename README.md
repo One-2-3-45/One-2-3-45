@@ -1,5 +1,5 @@
 # One-2-3-45: Any Single Image to 3D Mesh in 45 Seconds without Per-Shape Optimization
- [\[project\]]([https://one-2-3-45.com](https://one-2-3-45.github.io)) [\[paper\]]()  
+ [\[project\]](https://one-2-3-45.github.io) [\[paper\]]()  
 
 Official code of "One-2-3-45: Any Single Image to 3D Mesh in 45 Seconds without Per-Shape Optimization".
 
