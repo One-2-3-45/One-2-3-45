@@ -3,6 +3,8 @@
 
 Official code of "One-2-3-45: Any Single Image to 3D Mesh in 45 Seconds without Per-Shape Optimization".
 
+We plan to release an online demo (probably) next week (by 7/16). Please stay tuned!
+
 Code is coming soon!
 
 
