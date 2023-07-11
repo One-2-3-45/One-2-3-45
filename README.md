@@ -3,7 +3,7 @@
 
 Official code of "One-2-3-45: Any Single Image to 3D Mesh in 45 Seconds without Per-Shape Optimization".
 
-[***News***] [Online demo](https://huggingface.co/spaces/One-2-3-45/One-2-3-45) released! Explore it and create your own 3D models in a just 45 seconds!
+[***News***] [Online demo](https://huggingface.co/spaces/One-2-3-45/One-2-3-45) released! Explore it and create your own 3D models in just 45 seconds!
 
 Code is coming soon!
 
