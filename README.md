@@ -1,9 +1,9 @@
 # One-2-3-45: Any Single Image to 3D Mesh in 45 Seconds without Per-Shape Optimization
- [\[project\]](https://one-2-3-45.github.io) [\[paper\]](https://arxiv.org/pdf/2306.16928.pdf)  
+ [\[project\]](https://one-2-3-45.github.io) [\[paper\]](https://arxiv.org/pdf/2306.16928.pdf)  [\[demo\]](https://huggingface.co/spaces/One-2-3-45/One-2-3-45)
 
 Official code of "One-2-3-45: Any Single Image to 3D Mesh in 45 Seconds without Per-Shape Optimization".
 
-We plan to release an online demo (probably) next week (by 7/16). Please stay tuned!
+[***News***] [Online demo](https://huggingface.co/spaces/One-2-3-45/One-2-3-45) released! Explore it and create your own 3D models in a just 45 seconds!
 
 Code is coming soon!
 
