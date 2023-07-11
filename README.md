@@ -1,4 +1,6 @@
 # One-2-3-45: Any Single Image to 3D Mesh in 45 Seconds without Per-Shape Optimization
+[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/One-2-3-45/One-2-3-45)
+
  [\[project\]](https://one-2-3-45.github.io) [\[paper\]](https://arxiv.org/pdf/2306.16928.pdf)  [\[demo\]](https://huggingface.co/spaces/One-2-3-45/One-2-3-45)
 
 Official code of "One-2-3-45: Any Single Image to 3D Mesh in 45 Seconds without Per-Shape Optimization".
