@@ -1,0 +1,4 @@
+weights/
+data/
+*.ipynb
+demo_examples_*

@@ -1,0 +1,33 @@
+#model-3d-out {
+    height: 400px;
+} 
+
+#plot-out {
+    height: 450px;
+}
+
+#duplicate-button {
+    margin-left: auto;
+    color: #fff;
+    background: #1565c0;
+  }
+
+.footer {
+    margin-bottom: 45px;
+    margin-top: 10px;
+    text-align: center;
+    border-bottom: 1px solid #e5e5e5;
+}
+.footer>p {
+    font-size: .8rem;
+    display: inline-block;
+    padding: 0 10px;
+    transform: translateY(10px);
+    background: white;
+}
+.dark .footer {
+    border-color: #303030;
+}
+.dark .footer>p {
+    background: #0b0f19;
+}

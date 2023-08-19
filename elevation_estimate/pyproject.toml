@@ -1,0 +1,7 @@
+[project]
+name = "elevation_estimate"
+version = "0.1"
+
+[tool.setuptools.packages.find]
+exclude = ["configs", "tests"]  # empty by default
+namespaces = false  # true by default
