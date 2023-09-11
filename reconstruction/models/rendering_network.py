@@ -110,7 +110,7 @@ class GeneralRenderingNetwork(nn.Module):
 
         x_vis = self.vis_fc(x * weight)
         x_res, vis = torch.split(x_vis, [x_vis.shape[-1] - 1, 1], dim=-1)
-        vis = F.sigmoid(vis) * mask
+        vis = torch.sigmoid(vis) * mask
         x = x + x_res
         vis = self.vis_fc2(x * vis) * mask
 

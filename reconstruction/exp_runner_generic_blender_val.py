@@ -18,7 +18,7 @@ from models.featurenet import FeatureNet
 from models.trainer_generic import GenericTrainer
 from models.sparse_sdf_network import SparseSdfNetwork
 from models.rendering_network import GeneralRenderingNetwork
-from data.blender_general_narrow_all_eval_new_data import BlenderPerView
+from data.One2345_eval_new_data import BlenderPerView
 
 
 from datetime import datetime
@@ -45,10 +45,10 @@ class Runner:
         self.timestamp = None
         if not self.is_continue:
             self.timestamp = '_{:%Y_%m_%d_%H_%M_%S}'.format(datetime.now())
-            self.base_exp_dir = self.conf['general.base_exp_dir'] + self.timestamp # jha comment this when testing and use this when training
+            self.base_exp_dir = self.conf['general.base_exp_dir'] + self.timestamp 
         else:
             self.base_exp_dir = self.conf['general.base_exp_dir']
-        self.conf['general.base_exp_dir'] = self.base_exp_dir # jha use this when testing
+        self.conf['general.base_exp_dir'] = self.base_exp_dir
         print("base_exp_dir: " + self.base_exp_dir)
         os.makedirs(self.base_exp_dir, exist_ok=True)
         self.iter_step = 0
@@ -167,8 +167,6 @@ class Runner:
         self.train_dataset = BlenderPerView(
             root_dir=self.conf['dataset.trainpath'],
             split=self.conf.get_string('dataset.train_split', default='train'),
-            split_filepath=self.conf.get_string('dataset.train_split_filepath', default=None),
-            n_views=self.conf['dataset.nviews'],
             downSample=self.conf['dataset.imgScale_train'],
             N_rays=self.N_rays,
             batch_size=self.batch_size,
@@ -180,19 +178,15 @@ class Runner:
         self.val_dataset = BlenderPerView(
             root_dir=self.conf['dataset.valpath'],
             split=self.conf.get_string('dataset.test_split', default='test'),
-            split_filepath=self.conf.get_string('dataset.val_split_filepath', default=None),
-            n_views=3,
             downSample=self.conf['dataset.imgScale_test'],
             N_rays=self.N_rays,
             batch_size=self.batch_size,
             clean_image=self.conf.get_bool('dataset.mask_out_image',
                                            default=False) if self.mode != 'train' else False,
             importance_sample=self.conf.get_bool('dataset.importance_sample', default=False),
-            test_ref_views=self.conf.get_list('dataset.test_ref_views', default=[]),
             specific_dataset_name = args.specific_dataset_name
         )
 
-        # item = self.train_dataset.__getitem__(0)
         self.train_dataloader = DataLoader(self.train_dataset,
                                            shuffle=True,
                                            num_workers=4 * self.batch_size,

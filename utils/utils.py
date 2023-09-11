@@ -133,7 +133,7 @@ def gen_poses(shape_dir, pose_est):
     out_dict = {}
     focal = 560/2; h = w = 256
     out_dict['intrinsics'] = [[focal, 0, w / 2], [0, focal, h / 2], [0, 0, 1]]
-    out_dict['near_far'] = [1.2-0.7, 1.2+0.7]
+    out_dict['near_far'] = [1.2-0.7, 1.2+0.6]
     out_dict['c2ws'] = {}
     for view_id, img_id in enumerate(img_ids):
         pose = input_poses[view_id]

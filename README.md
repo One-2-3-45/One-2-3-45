@@ -26,6 +26,9 @@ https://github.com/One-2-3-45/One-2-3-45/assets/16759292/5ecd45ef-8fd3-4643-af4c
 
 
 ## News
+**[09/11/2023]**
+Training code released.
+
 **[08/18/2023]**
 Inference code released.
 
@@ -135,7 +138,7 @@ python download_ckpt.py
 ```
 </details>
 
-## Getting started (Inference)
+## Getting Started (Inference)
 
 First-time running will take longer time to compile the models.
 
@@ -154,6 +157,50 @@ python app.py
 example.ipynb
 ```
 
+## Training Your Own Model
+
+### Data Preparation
+We use Objaverse-LVIS dataset for training and render the selected shapes (with CC-BY license) into 2D images with Blender. 
+#### Download the training images.
+Download all One2345.zip.part-* files (5 files in total) from <a href="https://huggingface.co/datasets/One-2-3-45/training_data/tree/main">here</a> and then cat them into a single .zip file using the following command:
+```bash
+cat One2345.zip.part-* > One2345.zip
+```
+
+#### Unzip the training images zip file.
+Unzip the zip file into a folder specified by yourself (`YOUR_BASE_FOLDER`) with the following command:
+
+```bash
+unzip One2345.zip -d YOUR_BASE_FOLDER
+```
+
+#### Download meta files.
+
+Download `One2345_training_pose.json` and `lvis_split_cc_by.json` from <a href="https://huggingface.co/datasets/One-2-3-45/training_data/tree/main">here</a> and put them into the same folder as the training images (`YOUR_BASE_FOLDER`).
+
+Your file structure should look like this:
+```
+# One2345 is your base folder used in the previous steps
+
+One2345
+├── One2345_training_pose.json
+├── lvis_split_cc_by.json
+└── zero12345_narrow
+    ├── 000-000
+    ├── 000-001
+    ├── 000-002
+    ...
+    └── 000-159
+    
+```
+
+### Training
+Specify the `trainpath`, `valpath`, and `testpath` in the config file `./reconstruction/confs/one2345_lod_train.conf` to be `YOUR_BASE_FOLDER` used in data preparation steps and run the following command:
+```bash
+cd reconstruction
+python exp_runner_generic_blender_train.py --mode train --conf confs/one2345_lod_train.conf
+```
+Experiment logs and checkpoints will be saved in `./reconstruction/exp/`.
 
 ## Citation
 

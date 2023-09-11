@@ -8,16 +8,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import numpy as np
+
 import trimesh
-from icecream import ic
 
 from utils.misc_utils import visualize_depth_numpy
 
-from loss.depth_metric import compute_depth_errors
+from utils.training_utils import numpy2tensor
 
 from loss.depth_loss import DepthLoss, DepthSmoothLoss
 
 from models.sparse_neus_renderer import SparseNeuSRenderer
+
 
 class GenericTrainer(nn.Module):
     def __init__(self,
@@ -115,6 +116,9 @@ class GenericTrainer(nn.Module):
         self.fg_bg_weight = self.conf.get_float('train.fg_bg_weight', default=0.00)
         self.bg_ratio = self.conf.get_float('train.bg_ratio', default=0.0)
 
+        self.depth_loss_weight = self.conf.get_float('train.depth_loss_weight', default=1.00)
+
+        print("depth_loss_weight: ", self.depth_loss_weight)
         self.depth_criterion = DepthLoss()
 
         # - DataParallel mode, cannot modify attributes in forward()
@@ -200,7 +204,6 @@ class GenericTrainer(nn.Module):
         else:
             with torch.no_grad():
                 geometry_feature_maps = self.obtain_pyramid_feature_maps(imgs, lod=0)
-                # geometry_feature_maps = self.obtain_pyramid_feature_maps(imgs, lod=0)
                 conditional_features_lod0 = self.sdf_network_lod0.get_conditional_volume(
                     feature_maps=geometry_feature_maps[None, 1:, :, :, :],
                     partial_vol_origin=partial_vol_origin,
@@ -210,10 +213,11 @@ class GenericTrainer(nn.Module):
                     sizeW=sizeW,
                     lod=0,
                 )
-        # print("Checker2:, construct cost volume")
+
         con_volume_lod0 = conditional_features_lod0['dense_volume_scale0']
 
         con_valid_mask_volume_lod0 = conditional_features_lod0['valid_mask_volume_scale0']
+
         coords_lod0 = conditional_features_lod0['coords_scale0']  # [1,3,wX,wY,wZ]
 
         # * extract depth maps for all the images
@@ -229,7 +233,6 @@ class GenericTrainer(nn.Module):
                 sizeH // 4, sizeW // 4, near * 1.5, far)
             depth_maps_lod0 = F.interpolate(depth_maps_lod0_l4x, size=(sizeH, sizeW), mode='bilinear',
                                             align_corners=True)
-            depth_masks_lod0 = F.interpolate(depth_masks_lod0_l4x.float(), size=(sizeH, sizeW), mode='nearest')
 
         # *************** losses
         loss_lod0, losses_lod0, depth_statis_lod0 = None, None, None
@@ -315,7 +318,7 @@ class GenericTrainer(nn.Module):
             loss_lod1, losses_lod1, depth_statis_lod1 = self.cal_losses_sdf(render_out_lod1, sample_rays,
                                                                                      iter_step, lod=1)
 
-        # print("Checker3:, compute losses")
+
         # # - extract mesh
         if iter_step % self.val_mesh_freq == 0:
             torch.cuda.empty_cache()
@@ -337,6 +340,7 @@ class GenericTrainer(nn.Module):
                                    mode='train_bg', meta=meta,
                                    iter_step=iter_step, scale_mat=scale_mat,
                                    trans_mat=trans_mat)
+
         losses = {
             # - lod 0
             'loss_lod0': loss_lod0,
@@ -415,6 +419,7 @@ class GenericTrainer(nn.Module):
         with torch.no_grad():
             # - obtain conditional features
             geometry_feature_maps = self.obtain_pyramid_feature_maps(imgs, lod=0)
+
             # - lod 0
             conditional_features_lod0 = self.sdf_network_lod0.get_conditional_volume(
                 feature_maps=geometry_feature_maps[None, :, :, :, :],
@@ -616,17 +621,214 @@ class GenericTrainer(nn.Module):
 
             torch.cuda.empty_cache()
 
+    @torch.no_grad()
+    def get_metrics_step(self, sample,
+                   perturb_overwrite=-1,
+                   background_rgb=None,
+                   alpha_inter_ratio_lod0=0.0,
+                   alpha_inter_ratio_lod1=0.0,
+                   iter_step=0,
+                   ):
+        # * only support batch_size==1
+        # ! attention: the list of string cannot be splited in DataParallel
+        batch_idx = sample['batch_idx'][0]
+        meta = sample['meta'][batch_idx]  # the scan lighting ref_view info
+
+        sizeW = sample['img_wh'][0][0]
+        sizeH = sample['img_wh'][0][1]
+        partial_vol_origin = sample['partial_vol_origin']  # [B, 3]
+        near, far = sample['near_fars'][0, 0, :1], sample['near_fars'][0, 0, 1:]
+
+        # the full-size ray variables
+        sample_rays = sample['rays']
+        rays_o = sample_rays['rays_o'][0]
+        rays_d = sample_rays['rays_v'][0]
+
+        imgs = sample['images'][0]
+        intrinsics = sample['intrinsics'][0]
+        intrinsics_l_4x = intrinsics.clone()
+        intrinsics_l_4x[:, :2] *= 0.25
+        w2cs = sample['w2cs'][0]
+        c2ws = sample['c2ws'][0]
+        proj_matrices = sample['affine_mats']
+        scale_mat = sample['scale_mat']
+        trans_mat = sample['trans_mat']
+
+        # ***********************     Lod==0     ***********************
+        if not self.if_fix_lod0_networks:
+            geometry_feature_maps = self.obtain_pyramid_feature_maps(imgs)
+
+            conditional_features_lod0 = self.sdf_network_lod0.get_conditional_volume(
+                feature_maps=geometry_feature_maps[None, 1:, :, :, :],
+                partial_vol_origin=partial_vol_origin,
+                proj_mats=proj_matrices[:,1:],
+                # proj_mats=proj_matrices,
+                sizeH=sizeH,
+                sizeW=sizeW,
+                lod=0,
+            )
+
+        else:
+            with torch.no_grad():
+                geometry_feature_maps = self.obtain_pyramid_feature_maps(imgs, lod=0)
+                # geometry_feature_maps = self.obtain_pyramid_feature_maps(imgs, lod=0)
+                conditional_features_lod0 = self.sdf_network_lod0.get_conditional_volume(
+                    feature_maps=geometry_feature_maps[None, 1:, :, :, :],
+                    partial_vol_origin=partial_vol_origin,
+                    proj_mats=proj_matrices[:,1:],
+                    # proj_mats=proj_matrices,
+                    sizeH=sizeH,
+                    sizeW=sizeW,
+                    lod=0,
+                )
+        con_volume_lod0 = conditional_features_lod0['dense_volume_scale0']
+
+        con_valid_mask_volume_lod0 = conditional_features_lod0['valid_mask_volume_scale0']
+        coords_lod0 = conditional_features_lod0['coords_scale0']  # [1,3,wX,wY,wZ]
+
+        # * extract depth maps for all the images
+        depth_maps_lod0, depth_masks_lod0 = None, None
+        if self.num_lods > 1:
+            sdf_volume_lod0 = self.sdf_network_lod0.get_sdf_volume(
+                con_volume_lod0, con_valid_mask_volume_lod0,
+                coords_lod0, partial_vol_origin)  # [1, 1, dX, dY, dZ]
+
+        if self.prune_depth_filter:
+            depth_maps_lod0_l4x, depth_masks_lod0_l4x = self.sdf_renderer_lod0.extract_depth_maps(
+                self.sdf_network_lod0, sdf_volume_lod0, intrinsics_l_4x, c2ws,
+                sizeH // 4, sizeW // 4, near * 1.5, far)
+            depth_maps_lod0 = F.interpolate(depth_maps_lod0_l4x, size=(sizeH, sizeW), mode='bilinear',
+                                            align_corners=True)
+            depth_masks_lod0 = F.interpolate(depth_masks_lod0_l4x.float(), size=(sizeH, sizeW), mode='nearest')
+
+        # *************** losses
+        loss_lod0, losses_lod0, depth_statis_lod0 = None, None, None
+
+        if not self.if_fix_lod0_networks:
+
+            render_out = self.sdf_renderer_lod0.render(
+                rays_o, rays_d, near, far,
+                self.sdf_network_lod0,
+                self.rendering_network_lod0,
+                background_rgb=background_rgb,
+                alpha_inter_ratio=alpha_inter_ratio_lod0,
+                # * related to conditional feature
+                lod=0,
+                conditional_volume=con_volume_lod0,
+                conditional_valid_mask_volume=con_valid_mask_volume_lod0,
+                # * 2d feature maps
+                feature_maps=geometry_feature_maps,
+                color_maps=imgs,
+                w2cs=w2cs,
+                intrinsics=intrinsics,
+                img_wh=[sizeW, sizeH],
+                if_general_rendering=True,
+                if_render_with_grad=True,
+            )
+
+            loss_lod0, losses_lod0, depth_statis_lod0 = self.cal_losses_sdf(render_out, sample_rays,
+                                                                                     iter_step, lod=0)
+
+        # ***********************     Lod==1     ***********************
+
+        loss_lod1, losses_lod1, depth_statis_lod1 = None, None, None
+
+        if self.num_lods > 1:
+            geometry_feature_maps_lod1 = self.obtain_pyramid_feature_maps(imgs, lod=1)
+            # geometry_feature_maps_lod1 = self.obtain_pyramid_feature_maps(imgs, lod=1)
+            if self.prune_depth_filter:
+                pre_coords, pre_feats = self.sdf_renderer_lod0.get_valid_sparse_coords_by_sdf_depthfilter(
+                    sdf_volume_lod0[0], coords_lod0[0], con_valid_mask_volume_lod0[0], con_volume_lod0[0],
+                    depth_maps_lod0, proj_matrices[0],
+                    partial_vol_origin, self.sdf_network_lod0.voxel_size,
+                    near, far, self.sdf_network_lod0.voxel_size, 12)
+            else:
+                pre_coords, pre_feats = self.sdf_renderer_lod0.get_valid_sparse_coords_by_sdf(
+                    sdf_volume_lod0[0], coords_lod0[0], con_valid_mask_volume_lod0[0], con_volume_lod0[0])
+
+            pre_coords[:, 1:] = pre_coords[:, 1:] * 2
+
+            # ? It seems that training gru_fusion, this part should be trainable too
+            conditional_features_lod1 = self.sdf_network_lod1.get_conditional_volume(
+                feature_maps=geometry_feature_maps_lod1[None, 1:, :, :, :],
+                partial_vol_origin=partial_vol_origin,
+                proj_mats=proj_matrices[:,1:],
+                # proj_mats=proj_matrices,
+                sizeH=sizeH,
+                sizeW=sizeW,
+                pre_coords=pre_coords,
+                pre_feats=pre_feats,
+            )
+
+            con_volume_lod1 = conditional_features_lod1['dense_volume_scale1']
+            con_valid_mask_volume_lod1 = conditional_features_lod1['valid_mask_volume_scale1']
+
+            # if not self.if_gru_fusion_lod1:
+            render_out_lod1 = self.sdf_renderer_lod1.render(
+                rays_o, rays_d, near, far,
+                self.sdf_network_lod1,
+                self.rendering_network_lod1,
+                background_rgb=background_rgb,
+                alpha_inter_ratio=alpha_inter_ratio_lod1,
+                # * related to conditional feature
+                lod=1,
+                conditional_volume=con_volume_lod1,
+                conditional_valid_mask_volume=con_valid_mask_volume_lod1,
+                # * 2d feature maps
+                feature_maps=geometry_feature_maps_lod1,
+                color_maps=imgs,
+                w2cs=w2cs,
+                intrinsics=intrinsics,
+                img_wh=[sizeW, sizeH],
+                bg_ratio=self.bg_ratio,
+            )
+            loss_lod1, losses_lod1, depth_statis_lod1 = self.cal_losses_sdf(render_out_lod1, sample_rays,
+                                                                                     iter_step, lod=1)
+
+
+        # # - extract mesh
+        if iter_step % self.val_mesh_freq == 0:
+            torch.cuda.empty_cache()
+            self.validate_mesh(self.sdf_network_lod0,
+                               self.sdf_renderer_lod0.extract_geometry,
+                               conditional_volume=con_volume_lod0, lod=0,
+                               threshold=0,
+                               # occupancy_mask=con_valid_mask_volume_lod0[0, 0],
+                               mode='train_bg', meta=meta,
+                               iter_step=iter_step, scale_mat=scale_mat,
+                               trans_mat=trans_mat)
+            torch.cuda.empty_cache()
+
+            if self.num_lods > 1:
+                self.validate_mesh(self.sdf_network_lod1,
+                                   self.sdf_renderer_lod1.extract_geometry,
+                                   conditional_volume=con_volume_lod1, lod=1,
+                                   # occupancy_mask=con_valid_mask_volume_lod1[0, 0].detach(),
+                                   mode='train_bg', meta=meta,
+                                   iter_step=iter_step, scale_mat=scale_mat,
+                                   trans_mat=trans_mat)
+
+        losses = {
+            # - lod 0
+            'loss_lod0': loss_lod0,
+            'losses_lod0': losses_lod0,
+            'depth_statis_lod0': depth_statis_lod0,
+
+            # - lod 1
+            'loss_lod1': loss_lod1,
+            'losses_lod1': losses_lod1,
+            'depth_statis_lod1': depth_statis_lod1,
+
+        }
+
+        return losses
 
 
     def export_mesh_step(self, sample,
-                        perturb_overwrite=-1,
-                        background_rgb=None,
-                        alpha_inter_ratio_lod0=0.0,
-                        alpha_inter_ratio_lod1=0.0,
                         iter_step=0,
                         chunk_size=512,
-                        save_vis=False,
                         resolution=360,
+                        save_vis=False,
                         ):
         # * only support batch_size==1
         # ! attention: the list of string cannot be splited in DataParallel
@@ -644,14 +846,12 @@ class GenericTrainer(nn.Module):
         sample_rays = sample['rays']
         rays_o = sample_rays['rays_o'][0]
         rays_d = sample_rays['rays_v'][0]
-        rays_ndc_uv = sample_rays['rays_ndc_uv'][0]
 
         imgs = sample['images'][0]
         intrinsics = sample['intrinsics'][0]
         intrinsics_l_4x = intrinsics.clone()
         intrinsics_l_4x[:, :2] *= 0.25
         w2cs = sample['w2cs'][0]
-        c2ws = sample['c2ws'][0]
         # target_candidate_w2cs = sample['target_candidate_w2cs'][0]
         proj_matrices = sample['affine_mats']
 
@@ -660,24 +860,22 @@ class GenericTrainer(nn.Module):
         scale_mat = sample['scale_mat']  # [1,4,4]  used to convert mesh into true scale
         trans_mat = sample['trans_mat']
         query_c2w = sample['query_c2w']  # [1,4,4]
-        query_w2c = sample['query_w2c']  # [1,4,4]
         true_img = sample['query_image'][0]
         true_img = np.uint8(true_img.permute(1, 2, 0).cpu().numpy() * 255)
 
-        depth_min, depth_max = near.cpu().numpy(), far.cpu().numpy()
+        # depth_min, depth_max = near.cpu().numpy(), far.cpu().numpy()
 
-        scale_factor = sample['scale_factor'][0].cpu().numpy()
-        true_depth = sample['query_depth'] if 'query_depth' in sample.keys() else None
-        if true_depth is not None:
-            true_depth = true_depth[0].cpu().numpy()
-            true_depth_colored = visualize_depth_numpy(true_depth, [depth_min, depth_max])[0]
-        else:
-            true_depth_colored = None
+        # scale_factor = sample['scale_factor'][0].cpu().numpy()
+        # true_depth = sample['query_depth'] if 'query_depth' in sample.keys() else None
+        # # if true_depth is not None:
+        # #     true_depth = true_depth[0].cpu().numpy()
+        # #     true_depth_colored = visualize_depth_numpy(true_depth, [depth_min, depth_max])[0]
+        # # else:
+        # #     true_depth_colored = None
 
         rays_o = rays_o.reshape(-1, 3).split(chunk_size)
         rays_d = rays_d.reshape(-1, 3).split(chunk_size)
-        # import time
-        # jha_begin1 = time.time()
+
         # - obtain conditional features
         with torch.no_grad():
             # - obtain conditional features
@@ -733,13 +931,6 @@ class GenericTrainer(nn.Module):
             con_volume_lod1 = conditional_features_lod1['dense_volume_scale1']
             con_valid_mask_volume_lod1 = conditional_features_lod1['valid_mask_volume_scale1']
 
-        out_rgb_fine = []
-        out_normal_fine = []
-        out_depth_fine = []
-
-        out_rgb_fine_lod1 = []
-        out_normal_fine_lod1 = []
-        out_depth_fine_lod1 = []
 
         # - extract mesh
         if (iter_step % self.val_mesh_freq == 0):
@@ -769,6 +960,7 @@ class GenericTrainer(nn.Module):
                 self.validate_colored_mesh(
                             density_or_sdf_network=self.sdf_network_lod1,
                             func_extract_geometry=self.sdf_renderer_lod1.extract_geometry,
+                            resolution=resolution,
                             conditional_volume=con_volume_lod1,
                             conditional_valid_mask_volume = con_valid_mask_volume_lod1,
                             feature_maps=geometry_feature_maps,
@@ -785,6 +977,7 @@ class GenericTrainer(nn.Module):
                             iter_step=iter_step, scale_mat=scale_mat, trans_mat=trans_mat
                         )
             torch.cuda.empty_cache()
+
 
 
 
@@ -814,9 +1007,7 @@ class GenericTrainer(nn.Module):
                     depth_error_map = np.abs(true_depth - pred_depth) * 2.0 / scale_factor
                     # [256, 256, 1] -> [256, 256, 3]
                     depth_error_map = np.tile(depth_error_map[:, :, None], [1, 1, 3])
-                    print("meta: ", meta)
-                    print("scale_factor: ", scale_factor)
-                    print("depth_error_mean: ", depth_error_map.mean())
+
                     depth_visualized = np.concatenate(
                             [(depth_error_map * 255).astype(np.uint8), true_colored_depth, pred_depth_colored, true_img], axis=1)[:, :, ::-1]
                     # print("depth_visualized.shape: ", depth_visualized.shape)
@@ -842,11 +1033,9 @@ class GenericTrainer(nn.Module):
                        np.concatenate(
                            [img_fine, true_img])[:, :, ::-1])  # bgr2rgb
             # compute psnr (image pixel lie in [0, 255])
-            mse_loss = np.mean((img_fine - true_img) ** 2)
-            psnr = 10 * np.log10(255 ** 2 / mse_loss)
+            # mse_loss = np.mean((img_fine - true_img) ** 2)
+            # psnr = 10 * np.log10(255 ** 2 / mse_loss)
             
-            print("PSNR: ", psnr)
-
         if len(out_color_mlp) > 0:
             os.makedirs(os.path.join(self.base_exp_dir, 'synthesized_color_mlp_' + comment), exist_ok=True)
             cv.imwrite(os.path.join(self.base_exp_dir, 'synthesized_color_mlp_' + comment,
@@ -897,17 +1086,21 @@ class GenericTrainer(nn.Module):
             import time
             begin = time.time()
             result =  self.export_mesh_step(sample,
-                                 perturb_overwrite=perturb_overwrite,
-                                 background_rgb=background_rgb,
-                                 alpha_inter_ratio_lod0=alpha_inter_ratio_lod0,
-                                 alpha_inter_ratio_lod1=alpha_inter_ratio_lod1,
-                                 iter_step=iter_step,
-                                 save_vis=save_vis,
-                                 resolution=resolution,
-                                 )
+                                    iter_step=iter_step,
+                                    save_vis=save_vis,
+                                    resolution=resolution,
+                                    )
             end = time.time()
             print("export mesh time: ", end - begin)
             return result
+        elif mode == 'get_metrics':
+            return self.get_metrics_step(sample,
+                        perturb_overwrite=perturb_overwrite,
+                        background_rgb=background_rgb,
+                        alpha_inter_ratio_lod0=alpha_inter_ratio_lod0,
+                        alpha_inter_ratio_lod1=alpha_inter_ratio_lod1,
+                        iter_step=iter_step
+                        )
     def obtain_pyramid_feature_maps(self, imgs, lod=0):
         """
         get feature maps of all conditional images
@@ -987,11 +1180,8 @@ class GenericTrainer(nn.Module):
             color_mask = color_fine_mask if color_fine_mask is not None else mask
             color_mask = color_mask[..., 0]
             color_error = (color_fine[color_mask] - true_rgb[color_mask])
-            # print("Nan number", torch.isnan(color_error).sum())
-            # print("Color error shape", color_error.shape)
             color_fine_loss = F.l1_loss(color_error, torch.zeros_like(color_error).to(color_error.device),
                                         reduction='mean')
-            # print(color_fine_loss)
             psnr = 20.0 * torch.log10(
                 1.0 / (((color_fine[color_mask] - true_rgb[color_mask]) ** 2).mean() / (3.0)).sqrt())
         else:
@@ -1017,9 +1207,6 @@ class GenericTrainer(nn.Module):
             # depth_loss = self.depth_criterion(depth_pred, true_depth, mask)
             depth_loss = self.depth_criterion(depth_pred, true_depth)
 
-            # # depth evaluation
-            # depth_statis = compute_depth_errors(depth_pred.detach().cpu().numpy(), true_depth.cpu().numpy())
-            # depth_statis = numpy2tensor(depth_statis, device=rays_o.device)
             depth_statis = None
         else:
             depth_loss = 0.
@@ -1036,7 +1223,6 @@ class GenericTrainer(nn.Module):
 
         # Eikonal loss
         gradient_error_loss = gradient_error_fine
-
         # ! the first 50k, don't use bg constraint
         fg_bg_weight = 0.0 if iter_step < 50000 else get_weight(iter_step, self.fg_bg_weight)
 
@@ -1047,14 +1233,13 @@ class GenericTrainer(nn.Module):
         fg_bg_loss = 0.0
         if self.fg_bg_weight > 0 and torch.mean((mask < 0.5).to(torch.float32)) > 0.02:
             weights_sum_fg = render_out['weights_sum_fg']
-            fg_bg_error = (weights_sum_fg - mask)[mask < 0.5]
+            fg_bg_error = (weights_sum_fg - mask)
             fg_bg_loss = F.l1_loss(fg_bg_error,
                                    torch.zeros_like(fg_bg_error).to(fg_bg_error.device),
                                    reduction='mean')
 
 
-
-        loss = 1.0 * depth_loss + color_fine_loss + color_mlp_loss + \
+        loss = self.depth_loss_weight * depth_loss + color_fine_loss + color_mlp_loss + \
                sparse_loss * get_weight(iter_step, self.sdf_sparse_weight) + \
                fg_bg_loss * fg_bg_weight + \
                gradient_error_loss * self.sdf_igr_weight  # ! gradient_error_loss need a mask
@@ -1078,9 +1263,9 @@ class GenericTrainer(nn.Module):
             "variance": render_out['variance'],
             "sparse_weight": get_weight(iter_step, self.sdf_sparse_weight),
             "fg_bg_weight": fg_bg_weight,
-            "fg_bg_loss": fg_bg_loss, # added by jha, bug of sparseNeuS
+            "fg_bg_loss": fg_bg_loss, 
         }
-        losses = torch.tensor(losses, device=rays_o.device)
+        losses = numpy2tensor(losses, device=rays_o.device)
         return loss, losses, depth_statis
 
     @torch.no_grad()
@@ -1150,12 +1335,12 @@ class GenericTrainer(nn.Module):
             conditional_volume=conditional_volume, lod=lod,
             occupancy_mask=occupancy_mask
         )
-
+        
 
         with torch.no_grad():
             ren_geo_feats, ren_rgb_feats, ren_ray_diff, ren_mask, _, _ = rendering_projector.compute_view_independent(
                 torch.tensor(vertices).to(conditional_volume),
-                lod=lod, # JHA EDITED
+                lod=lod,
                 # * 3d geometry feature volumes
                 geometryVolume=conditional_volume[0],
                 geometryVolumeMask=conditional_valid_mask_volume[0],
@@ -1175,6 +1360,8 @@ class GenericTrainer(nn.Module):
             vertices_color, rendering_valid_mask = rendering_network(
                 ren_geo_feats, ren_rgb_feats, ren_ray_diff, ren_mask)
         
+
+
         if scale_mat is not None:
             scale_mat_np = scale_mat.cpu().numpy()
             vertices = vertices * scale_mat_np[0][0, 0] + scale_mat_np[0][:3, 3][None]
@@ -1186,7 +1373,8 @@ class GenericTrainer(nn.Module):
 
         vertices_color = np.array(vertices_color.squeeze(0).cpu() * 255, dtype=np.uint8)
         mesh = trimesh.Trimesh(vertices, triangles, vertex_colors=vertices_color)
+        # os.makedirs(os.path.join(self.base_exp_dir, 'meshes_' + mode, 'lod{:0>1d}'.format(lod)), exist_ok=True)
         # mesh.export(os.path.join(self.base_exp_dir, 'meshes_' + mode, 'lod{:0>1d}'.format(lod),
-        #                          'mesh_{:0>8d}_{}_lod{:0>1d}.ply'.format(iter_step, meta, lod)))
-        # MODIFIED
+        #                          'mesh_{:0>8d}_{}_lod{:0>1d}.ply'.format(iter_step, meta, lod)))  
+        
         mesh.export(os.path.join(self.base_exp_dir, 'mesh.ply'))
