@@ -26,6 +26,9 @@ https://github.com/One-2-3-45/One-2-3-45/assets/16759292/5ecd45ef-8fd3-4643-af4c
 
 
 ## News
+**[09/21/2023]**
+One-2-3-45 is accepted by NeurIPS 2023. See you in New Orleans!
+
 **[09/11/2023]**
 Training code released.
 
