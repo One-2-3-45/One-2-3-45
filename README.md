@@ -42,7 +42,7 @@ Our demo reached the HuggingFace top 4 trending and was featured in 🤗 Spaces 
 [Online interactive demo](https://huggingface.co/spaces/One-2-3-45/One-2-3-45) released! Explore it and create your own 3D models in just 45 seconds! 
 
 **[06/29/2023]**
-Check out our [paper](https://arxiv.org/abs/2306.05425). [[X](https://twitter.com/_akhaliq/status/1674617785119305728)]
+Check out our [paper](https://arxiv.org/pdf/2306.16928.pdf). [[X](https://twitter.com/_akhaliq/status/1674617785119305728)]
 
 ## Installation
 Hardware requirement: an NVIDIA GPU with memory >=18GB (_e.g._, RTX 3090 or A10). Tested on Ubuntu.
