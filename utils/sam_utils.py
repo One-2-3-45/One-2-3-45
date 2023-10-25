@@ -23,28 +23,15 @@ def sam_out_nosave(predictor, input_image, *bbox_sliders):
     start_time = time.time()
     predictor.set_image(image)
 
-    h, w, _ = image.shape
-    input_point = np.array([[h//2, w//2]])
-    input_label = np.array([1])
-
-    masks, scores, logits = predictor.predict(
-        point_coords=input_point,
-        point_labels=input_label,
-        multimask_output=True,
-    )
-
     masks_bbox, scores_bbox, logits_bbox = predictor.predict(
         box=bbox,
         multimask_output=True
     )
 
     print(f"SAM Time: {time.time() - start_time:.3f}s")
-    opt_idx = np.argmax(scores)
-    mask = masks[opt_idx]
     out_image = np.zeros((image.shape[0], image.shape[1], 4), dtype=np.uint8)
     out_image[:, :, :3] = image
     out_image_bbox = out_image.copy()
-    out_image[:, :, 3] = mask.astype(np.uint8) * 255
     out_image_bbox[:, :, 3] = masks_bbox[-1].astype(np.uint8) * 255 # np.argmax(scores_bbox)
     torch.cuda.empty_cache()
     return Image.fromarray(out_image_bbox, mode='RGBA') 

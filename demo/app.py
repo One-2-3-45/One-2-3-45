@@ -220,9 +220,6 @@ class CameraVisualizer:
 
             # look at center of scene
             fig.update_layout(
-                # width=640,
-                # height=480,
-                # height=400,
                 height=450,
                 autosize=True,
                 hovermode=False,
@@ -289,7 +286,7 @@ def stage1_run(models, device, cam_vis, tmp_dir,
         stage2_steps = 50 # ddim_steps
         zero123_infer(model, tmp_dir, indices=[0], device=device, ddim_steps=stage2_steps, scale=scale)
         try:
-            elev_output = estimate_elev(tmp_dir)
+            elev_output = int(estimate_elev(tmp_dir))
         except:
             print("Failed to estimate polar angle")
             elev_output = 90
@@ -471,7 +468,7 @@ def run_demo(
         gr.Markdown(_DESCRIPTION)
 
         with gr.Row(variant='panel'):
-            with gr.Column(scale=1.2):
+            with gr.Column(scale=6):
                 image_block = gr.Image(type='pil', image_mode='RGBA', height=290, label='Input image', tool=None)
 
                 gr.Examples(
@@ -495,7 +492,7 @@ def run_demo(
                 run_btn = gr.Button('Run Generation', variant='primary', interactive=False)
                 guide_text = gr.Markdown(_USER_GUIDE, visible=True)
                 
-            with gr.Column(scale=.8):
+            with gr.Column(scale=4):
                 with gr.Row():
                     bbox_block = gr.Image(type='pil', label="Bounding box", height=290, interactive=False)
                     sam_block = gr.Image(type='pil', label="SAM output", interactive=False)
@@ -511,11 +508,11 @@ def run_demo(
                 mesh_output = gr.Model3D(clear_color=[0.0, 0.0, 0.0, 0.0], label="One-2-3-45's Textured Mesh", elem_id="model-3d-out")
         
         with gr.Row(variant='panel'):
-            with gr.Column(scale=0.85):
+            with gr.Column(scale=85):
                 elev_output = gr.Label(label='Estimated elevation (degree, w.r.t. the horizontal plane)')
                 vis_output = gr.Plot(label='Camera poses of the input view (red) and predicted views (blue)', elem_id="plot-out")
                 
-            with gr.Column(scale=1.15):
+            with gr.Column(scale=115):
                 gr.Markdown('Predicted multi-view images')
                 with gr.Row():
                     view_1 = gr.Image(interactive=False, height=200, show_label=False)

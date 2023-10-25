@@ -88,8 +88,8 @@ wget https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/
 sudo sh cuda_11.8.0_520.61.05_linux.run
 export PATH="/usr/local/cuda-11.8/bin:$PATH"
 export LD_LIBRARY_PATH="/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH"
-# Install PyTorch 2.0
-pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# Install PyTorch 2.0.1
+pip install --no-cache-dir torch==2.0.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 # Install dependencies
 pip install -r requirements.txt
 # Install inplace_abn and torchsparse
@@ -159,6 +159,55 @@ python app.py
 # 3. Jupyter Notebook
 example.ipynb
 ```
+
+
+## APIs
+
+We provide handy Gradio APIs for our pipeline and its components, making it effortless to accurately preprocess in-the-wild or text-generated images and reconstruct 3D meshes from them.
+
+<details>
+<summary>To begin, initialize the Gradio Client with the API URL.</summary>
+
+```python
+from gradio_client import Client
+client = Client("https://one-2-3-45-one-2-3-45.hf.space/")
+# example input image
+input_img_path = "https://huggingface.co/spaces/One-2-3-45/One-2-3-45/resolve/main/demo_examples/01_wild_hydrant.png"
+```
+</details>
+
+### Single image to 3D mesh
+```python
+generated_mesh_filepath = client.predict(
+	input_img_path,	
+	True,		# image preprocessing
+	api_name="/generate_mesh"
+)
+```
+### Elevation estimation 
+
+If the input image's pose (elevation) is unknown, this off-the-shelf algorithm is all you need!
+
+```python
+elevation_angle_deg = client.predict(
+	input_img_path,
+	True,		# image preprocessing
+	api_name="/estimate_elevation"
+)
+```
+
+### Image preprocessing: segment, rescale, and recenter
+
+We adapt the Segment Anything model (SAM) for background removal.
+
+```python
+segmented_img_filepath = client.predict(
+	input_img_path,	
+	api_name="/preprocess"
+)
+```
+
+
 
 ## Training Your Own Model
 
