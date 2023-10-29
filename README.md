@@ -254,6 +254,11 @@ python exp_runner_generic_blender_train.py --mode train --conf confs/one2345_lod
 ```
 Experiment logs and checkpoints will be saved in `./reconstruction/exp/`.
 
+## Related Work
+[\[Zero123++\]](https://github.com/SUDO-AI-3D/zero123plus)
+
+[\[Zero123\]](https://github.com/cvlab-columbia/zero123)
+
 ## Citation
 
 If you find our code helpful, please cite our paper:
