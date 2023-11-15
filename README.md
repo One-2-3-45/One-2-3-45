@@ -16,7 +16,7 @@
   </a>
 </p>
 
-One-2-3-45 rethinks how to leverage 2D diffusion models for 3D AIGC and introduces a novel forward-only paradigm that avoids the time-consuming optimization.
+One-2-3-45 rethinks how to leverage 2D diffusion models for 3D AIGC and introduces a novel forward-only paradigm that avoids time-consuming optimization.
 
 https://github.com/One-2-3-45/One-2-3-45/assets/16759292/a81d6e32-8d29-43a5-b044-b5112b9f9664
 
@@ -28,6 +28,9 @@ https://github.com/One-2-3-45/One-2-3-45/assets/16759292/5ecd45ef-8fd3-4643-af4c
 ## News
 **[11/14/2023]**
 Check out our new work [One-2-3-45++](https://sudo-ai-3d.github.io/One2345plus_page/)!
+
+**[10/25/2023]**
+We released [rendering scripts](render/) for evaluation and [APIs](https://github.com/One-2-3-45/One-2-3-45#apis) for effortless inference.
 
 **[09/21/2023]**
 One-2-3-45 is accepted by NeurIPS 2023. See you in New Orleans!
@@ -50,7 +53,7 @@ Check out our [paper](https://arxiv.org/pdf/2306.16928.pdf). [[X](https://twitte
 ## Installation
 Hardware requirement: an NVIDIA GPU with memory >=18GB (_e.g._, RTX 3090 or A10). Tested on Ubuntu.
 
-We offer two ways to setup the environment:
+We offer two ways to set up the environment:
 
 ### Traditional Installation
 <details>
@@ -85,7 +88,7 @@ cd One-2-3-45
 <summary>Step 4: Install project dependencies using pip. </summary>
 
 ```bash
-# Ensure that the installed CUDA version matches the torch's cuda version.
+# Ensure that the installed CUDA version matches the torch's CUDA version.
 # Example: CUDA 11.8 installation
 wget https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run
 sudo sh cuda_11.8.0_520.61.05_linux.run
@@ -146,7 +149,7 @@ python download_ckpt.py
 
 ## Getting Started (Inference)
 
-First-time running will take longer time to compile the models.
+First-time running will take a longer time to compile the models.
 
 Expected time cost per image: 40s on an NVIDIA A6000.
 ```bash
@@ -154,7 +157,7 @@ Expected time cost per image: 40s on an NVIDIA A6000.
 python run.py --img_path PATH_TO_INPUT_IMG --half_precision
 
 # 2. Interactive demo (Gradio) with a friendly web interface
-#    An URL will be provided in the output 
+#    A URL will be provided in the output 
 #    (Local: 127.0.0.1:7860; Public: XXXXXXX.gradio.live)
 cd demo/
 python app.py
@@ -215,7 +218,7 @@ segmented_img_filepath = client.predict(
 ## Training Your Own Model
 
 ### Data Preparation
-We use Objaverse-LVIS dataset for training and render the selected shapes (with CC-BY license) into 2D images with Blender. 
+We use the Objaverse-LVIS dataset for training and render the selected shapes (with a CC-BY license) into 2D images with Blender. 
 #### Download the training images.
 Download all One2345.zip.part-* files (5 files in total) from <a href="https://huggingface.co/datasets/One-2-3-45/training_data/tree/main">here</a> and then cat them into a single .zip file using the following command:
 ```bash
@@ -269,12 +272,10 @@ Experiment logs and checkpoints will be saved in `./reconstruction/exp/`.
 If you find our code helpful, please cite our paper:
 
 ```
-@misc{liu2023one2345,
-      title={One-2-3-45: Any Single Image to 3D Mesh in 45 Seconds without Per-Shape Optimization}, 
-      author={Minghua Liu and Chao Xu and Haian Jin and Linghao Chen and Mukund Varma T and Zexiang Xu and Hao Su},
-      year={2023},
-      eprint={2306.16928},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+@article{liu2023one,
+  title={One-2-3-45: Any single image to 3d mesh in 45 seconds without per-shape optimization},
+  author={Liu, Minghua and Xu, Chao and Jin, Haian and Chen, Linghao and Xu, Zexiang and Su, Hao and others},
+  journal={arXiv preprint arXiv:2306.16928},
+  year={2023}
 }
 ```
