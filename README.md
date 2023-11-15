@@ -26,6 +26,9 @@ https://github.com/One-2-3-45/One-2-3-45/assets/16759292/5ecd45ef-8fd3-4643-af4c
 
 
 ## News
+**[11/14/2023]**
+Check out our new work [One-2-3-45++](https://sudo-ai-3d.github.io/One2345plus_page/)!
+
 **[09/21/2023]**
 One-2-3-45 is accepted by NeurIPS 2023. See you in New Orleans!
 
@@ -255,6 +258,8 @@ python exp_runner_generic_blender_train.py --mode train --conf confs/one2345_lod
 Experiment logs and checkpoints will be saved in `./reconstruction/exp/`.
 
 ## Related Work
+[\[One-2-3-45++\]](https://sudo-ai-3d.github.io/One2345plus_page/)
+
 [\[Zero123++\]](https://github.com/SUDO-AI-3D/zero123plus)
 
 [\[Zero123\]](https://github.com/cvlab-columbia/zero123)
