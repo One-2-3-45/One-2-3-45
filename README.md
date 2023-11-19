@@ -272,7 +272,7 @@ Experiment logs and checkpoints will be saved in `./reconstruction/exp/`.
 If you find our code helpful, please cite our paper:
 
 ```
-@article{liu2023one,
+@article{liu2023one2345,
   title={One-2-3-45: Any single image to 3d mesh in 45 seconds without per-shape optimization},
   author={Liu, Minghua and Xu, Chao and Jin, Haian and Chen, Linghao and Xu, Zexiang and Su, Hao and others},
   journal={arXiv preprint arXiv:2306.16928},
