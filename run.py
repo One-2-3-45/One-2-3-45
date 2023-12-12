@@ -30,7 +30,7 @@ def stage1_run(model, device, exp_dir,
     zero123_infer(model, exp_dir, indices=[0], device=device, ddim_steps=stage2_steps, scale=scale)
     # estimate the camera pose (elevation) of the input image.
     try:
-        polar_angle = estimate_elev(exp_dir)
+        polar_angle = int(estimate_elev(exp_dir))
     except:
         print("Failed to estimate polar angle")
         polar_angle = 90
