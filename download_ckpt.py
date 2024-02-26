@@ -21,7 +21,7 @@ if __name__ == "__main__":
     ckpts = {
         "sam_vit_h_4b8939.pth": "https://huggingface.co/One-2-3-45/code/resolve/main/sam_vit_h_4b8939.pth",
         "zero123-xl.ckpt": "https://huggingface.co/One-2-3-45/code/resolve/main/zero123-xl.ckpt",
-        "elevation_estimate/utils/weights/indoor_ds_new.ckpt" : "https://huggingface.co/One-2-3-45/code/resolve/main/one2345_elev_est/tools/weights/indoor_ds_new.ckpt",
+        "elevation_estimate/utils/weights/indoor_ds_new.ckpt" : "https://huggingface.co/One-2-3-45/code/resolve/main/elevation_estimate/utils/weights/indoor_ds_new.ckpt",
         "reconstruction/exp/lod0/checkpoints/ckpt_215000.pth": "https://huggingface.co/One-2-3-45/code/resolve/main/SparseNeuS_demo_v1/exp/lod0/checkpoints/ckpt_215000.pth"
     }
     for ckpt_name, ckpt_url in ckpts.items():
