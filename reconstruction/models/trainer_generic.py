@@ -163,7 +163,7 @@ class GenericTrainer(nn.Module):
                    iter_step=0,
                    ):
         # * only support batch_size==1
-        # ! attention: the list of string cannot be splited in DataParallel
+        # ! attention: the list of string cannot be splitted in DataParallel
         batch_idx = sample['batch_idx'][0]
         meta = sample['meta'][batch_idx]  # the scan lighting ref_view info
 
@@ -366,7 +366,7 @@ class GenericTrainer(nn.Module):
                  save_vis=False,
                  ):
         # * only support batch_size==1
-        # ! attention: the list of string cannot be splited in DataParallel
+        # ! attention: the list of string cannot be splitted in DataParallel
         batch_idx = sample['batch_idx'][0]
         meta = sample['meta'][batch_idx]  # the scan lighting ref_view info
 
@@ -630,7 +630,7 @@ class GenericTrainer(nn.Module):
                    iter_step=0,
                    ):
         # * only support batch_size==1
-        # ! attention: the list of string cannot be splited in DataParallel
+        # ! attention: the list of string cannot be splitted in DataParallel
         batch_idx = sample['batch_idx'][0]
         meta = sample['meta'][batch_idx]  # the scan lighting ref_view info
 
@@ -831,7 +831,7 @@ class GenericTrainer(nn.Module):
                         save_vis=False,
                         ):
         # * only support batch_size==1
-        # ! attention: the list of string cannot be splited in DataParallel
+        # ! attention: the list of string cannot be splitted in DataParallel
         batch_idx = sample['batch_idx'][0]
         meta = sample['meta'][batch_idx]  # the scan lighting ref_view info
 
