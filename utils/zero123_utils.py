@@ -112,7 +112,7 @@ def sample_model_batch(model, sampler, input_image, xs, ys, n_samples=4, precisi
     return final_imgs
 
 @torch.no_grad()
-def predict_stage1_gradio(model, raw_im, save_path = "", adjust_set=[], device="cuda", ddim_steps=75, scale=3.0, nums=1000):
+def predict_stage1_gradio(model, raw_im, save_path = "", adjust_set=[], device="cuda", ddim_steps=75, scale=3.0):
     # raw_im = raw_im.resize([256, 256], Image.LANCZOS)
     # input_im_init = preprocess_image(models, raw_im, preprocess=False)
     input_im_init = np.asarray(raw_im, dtype=np.float32) / 255.0
@@ -120,27 +120,18 @@ def predict_stage1_gradio(model, raw_im, save_path = "", adjust_set=[], device="
     input_im = input_im * 2 - 1
 
     # stage 1: 8
-    # delta_x_1_8 = [0] * 4 + [30] * 4 + [-30] * 4
-    # create a uniform sample of views=nums from -180 to 180
-    delta_x_1_8 = np.linspace(-180, 180, nums*3, endpoint=False).tolist()
-
-    # delta_y_1_8 = [0+90*(i%4) if i < 4 else 30+90*(i%4) for i in range(8)] + [30+90*(i%4) for i in range(4)]
-    delta_y_1_8 = [0+90*(i%4) if i < 4 else 30+90*(i%4) for i in range(nums*2)] + [30+90*(i%4) for i in range(nums)]
+    delta_x_1_8 = [0] * 4 + [30] * 4 + [-30] * 4
+    delta_y_1_8 = [0+90*(i%4) if i < 4 else 30+90*(i%4) for i in range(8)] + [30+90*(i%4) for i in range(4)]
 
     ret_imgs = []
     sampler = DDIMSampler(model)
-    sampler.to(device)
+    # sampler.to(device)
     if adjust_set != []:
         x_samples_ddims_8 = sample_model_batch(model, sampler, input_im, 
                                                [delta_x_1_8[i] for i in adjust_set], [delta_y_1_8[i] for i in adjust_set], 
                                                n_samples=len(adjust_set), ddim_steps=ddim_steps, scale=scale)
     else:
         x_samples_ddims_8 = sample_model_batch(model, sampler, input_im, delta_x_1_8, delta_y_1_8, n_samples=len(delta_x_1_8), ddim_steps=ddim_steps, scale=scale)
-
-    # force to use all views
-    # x_samples_ddims_8 = sample_model_batch(model, sampler, input_im, delta_x_1_8, delta_y_1_8, n_samples=len(delta_x_1_8), ddim_steps=ddim_steps, scale=scale)
-
-    #### Sampling #####
     sample_idx = 0
     for stage1_idx in range(len(delta_x_1_8)):
         if adjust_set != [] and stage1_idx not in adjust_set:
@@ -151,21 +142,13 @@ def predict_stage1_gradio(model, raw_im, save_path = "", adjust_set=[], device="
         if save_path:
             out_image.save(os.path.join(save_path, '%d.png'%(stage1_idx)))
         sample_idx += 1
-
-    ## Save all images (not sampling)
-    # for stage1_idx in range(len(delta_x_1_8)):
-    #     x_sample = 255.0 * rearrange(x_samples_ddims_8[stage1_idx].numpy(), 'c h w -> h w c')
-    #     out_image = Image.fromarray(x_sample.astype(np.uint8))
-    #     ret_imgs.append(out_image)
-    #     if save_path:
-    #         out_image.save(os.path.join(save_path, '%d.png'%(stage1_idx)))
-
     del x_samples_ddims_8
     del sampler
     torch.cuda.empty_cache()
-    return None
+    return ret_imgs
 
-def infer_stage_2(model, save_path_stage1, save_path_stage2, delta_x_2, delta_y_2, indices, device, ddim_steps=75, scale=3.0):
+def infer_stage_2(model, save_path_stage1, save_path_stage2, delta_x_2, delta_y_2, indices,
+                  device, ddim_steps=75, scale=3.0):
     for stage1_idx in indices:
         # save stage 1 image
         # x_sample = 255.0 * rearrange(x_samples_ddims[stage1_idx].cpu().numpy(), 'c h w -> h w c')
@@ -191,24 +174,42 @@ def infer_stage_2(model, save_path_stage1, save_path_stage2, delta_x_2, delta_y_
         del x_samples_ddims_stage2
         torch.cuda.empty_cache()
 
-def zero123_infer(model, input_dir_path, start_idx=0, end_idx=12, indices=None, device="cuda", ddim_steps=75, scale=3.0):
+def zero123_infer(model, input_dir_path, start_idx=0, end_idx=12, indices=None,
+                  device="cuda", ddim_steps=75, scale=3.0):
     # input_img_path = os.path.join(input_dir_path, "input_256.png")
     save_path_8 = os.path.join(input_dir_path, "stage1_8")
     save_path_8_2 = os.path.join(input_dir_path, "stage2_8")
     os.makedirs(save_path_8_2, exist_ok=True)
 
-    # raw_im = Image.open(input_img_path)
-    # # input_im_init = preprocess_image(models, raw_im, preprocess=False)
-    # input_im_init = np.asarray(raw_im, dtype=np.float32) / 255.0
-    # input_im = transforms.ToTensor()(input_im_init).unsqueeze(0).to(device)
-    # input_im = input_im * 2 - 1
+    # stage 2: 6*4 or 8*4
+    delta_x_2 = [-10, 10, 0, 0]
+    delta_y_2 = [0, 0, -10, 10]
+
+    infer_stage_2(model, save_path_8, save_path_8_2, delta_x_2, delta_y_2,
+                  indices=indices if indices else list(range(start_idx,end_idx)),
+                  device=device, ddim_steps=ddim_steps, scale=scale)
+
+
+def zero123_infer_v2(model, input_dir_path, start_idx=0, end_idx=12, indices=None,
+                  device="cuda", ddim_steps=75, scale=3.0, num_samples=4):
+    # input_img_path = os.path.join(input_dir_path, "input_256.png")
+    save_path_8 = os.path.join(input_dir_path, "stage1_8")
+    save_path_8_2 = os.path.join(input_dir_path, "stage2_8")
+    os.makedirs(save_path_8_2, exist_ok=True)
 
     # stage 2: 6*4 or 8*4
     # delta_x_2 = [-10, 10, 0, 0]
     # delta_y_2 = [0, 0, -10, 10]
 
-    # expand the above to take 1000 views (end_idx is num_views)
-    delta_x_2 = np.linspace(-180, 180, end_idx, endpoint=False).tolist()
-    delta_y_2 = np.linspace(0, 80, end_idx, endpoint=False).tolist()
+    # Use same 4 base views, but do more intermediate views here (using num_samples)
+    # We'll keep delta_y variation from to -20 to 20, but delta_x will vary from -50 to 50
+    delta_x_2 = np.linspace(-50, 50, num_samples)
+    # expand delta_x_2 with a list of zeros
+    delta_x_2 = np.concatenate([delta_x_2, np.zeros(num_samples)]).tolist()
 
-    infer_stage_2(model, save_path_8, save_path_8_2, delta_x_2, delta_y_2, indices=indices if indices else list(range(start_idx,end_idx)), device=device, ddim_steps=ddim_steps, scale=scale)
+    delta_y_2 = np.linspace(-10, 10, num_samples)
+    delta_y_2 = np.concatenate([delta_y_2, np.zeros(num_samples)]).tolist()
+
+    infer_stage_2(model, save_path_8, save_path_8_2, delta_x_2, delta_y_2,
+                  indices=indices if indices else list(range(start_idx,end_idx)),
+                  device=device, ddim_steps=ddim_steps, scale=scale)
