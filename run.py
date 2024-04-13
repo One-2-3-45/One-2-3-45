@@ -7,6 +7,7 @@ from utils.sam_utils import sam_init, sam_out_nosave
 from utils.utils import pred_bbox, image_preprocess_nosave, gen_poses, convert_mesh_format
 from elevation_estimate.estimate_wild_imgs import estimate_elev
 
+NUM_OUT_MULT = 1000
 
 def preprocess(predictor, raw_im, lower_contrast=False):
     raw_im.thumbnail([512, 512], Image.Resampling.LANCZOS)
@@ -22,12 +23,13 @@ def stage1_run(model, device, exp_dir,
     os.makedirs(stage1_dir, exist_ok=True)
 
     # stage 1: generate 4 views at the same elevation as the input
-    output_ims = predict_stage1_gradio(model, input_im, save_path=stage1_dir, adjust_set=list(range(4)), device=device, ddim_steps=ddim_steps, scale=scale)
-    
+               # I'm doing (1000 views)
+    _ = predict_stage1_gradio(model, input_im, save_path=stage1_dir, adjust_set=list(range(NUM_OUT_MULT)), device=device, ddim_steps=ddim_steps, scale=scale, nums=NUM_OUT_MULT)
+
     # stage 2 for the first image
     # infer 4 nearby views for an image to estimate the polar angle of the input
     stage2_steps = 50 # ddim_steps
-    zero123_infer(model, exp_dir, indices=[0], device=device, ddim_steps=stage2_steps, scale=scale)
+    zero123_infer(model, exp_dir, start_idx=0, end_idx=NUM_OUT_MULT*3, indices=[0], device=device, ddim_steps=stage2_steps, scale=scale)
     # estimate the camera pose (elevation) of the input image.
     try:
         polar_angle = int(estimate_elev(exp_dir))
@@ -38,20 +40,22 @@ def stage1_run(model, device, exp_dir,
     gen_poses(exp_dir, polar_angle)
 
     # stage 1: generate another 4 views at a different elevation
+               # I'm doing another 250 views
     if polar_angle <= 75:
-        output_ims_2 = predict_stage1_gradio(model, input_im, save_path=stage1_dir, adjust_set=list(range(4,8)), device=device, ddim_steps=ddim_steps, scale=scale)
+        _ = predict_stage1_gradio(model, input_im, save_path=stage1_dir, adjust_set=list(range(NUM_OUT_MULT,NUM_OUT_MULT*2)), device=device, ddim_steps=ddim_steps, scale=scale)
     else:
-        output_ims_2 = predict_stage1_gradio(model, input_im, save_path=stage1_dir, adjust_set=list(range(8,12)), device=device, ddim_steps=ddim_steps, scale=scale)
+        _ = predict_stage1_gradio(model, input_im, save_path=stage1_dir, adjust_set=list(range(NUM_OUT_MULT*2,NUM_OUT_MULT*3)), device=device, ddim_steps=ddim_steps, scale=scale)
     torch.cuda.empty_cache()
-    return 90-polar_angle, output_ims+output_ims_2
-    
+    # return 90-polar_angle, output_ims+output_ims_2
+    return 90-polar_angle, scale
+
 def stage2_run(model, device, exp_dir,
                elev, scale, stage2_steps=50):
     # stage 2 for the remaining 7 images, generate 7*4=28 views
     if 90-elev <= 75:
-        zero123_infer(model, exp_dir, indices=list(range(1,8)), device=device, ddim_steps=stage2_steps, scale=scale)
+        zero123_infer(model, exp_dir, start_idx=0, end_idx=NUM_OUT_MULT*3, indices=list(range(1,NUM_OUT_MULT*2)), device=device, ddim_steps=stage2_steps, scale=scale)
     else:
-        zero123_infer(model, exp_dir, indices=list(range(1,4))+list(range(8,12)), device=device, ddim_steps=stage2_steps, scale=scale)
+        zero123_infer(model, exp_dir, start_idx=0, end_idx=NUM_OUT_MULT*3, indices=list(range(1,NUM_OUT_MULT))+list(range(NUM_OUT_MULT*2,NUM_OUT_MULT)), device=device, ddim_steps=stage2_steps, scale=scale)
 
 def reconstruct(exp_dir, output_format=".ply", device_idx=0, resolution=256):
     exp_dir = os.path.abspath(exp_dir)
@@ -92,7 +96,7 @@ def predict_multiview(shape_dir, args):
 
     # generate multi-view images in two stages with Zero123.
     # first stage: generate N=8 views cover 360 degree of the input shape.
-    elev, stage1_imgs = stage1_run(model_zero123, device, shape_dir, input_256, scale=3, ddim_steps=75)
+    elev, _ = stage1_run(model_zero123, device, shape_dir, input_256, scale=3, ddim_steps=75)
     # second stage: 4 local views for each of the first-stage view, resulting in N*4=32 source view images.
     stage2_run(model_zero123, device, shape_dir, elev, scale=3, stage2_steps=50)
 
@@ -114,6 +118,7 @@ if __name__ == "__main__":
 
     predict_multiview(shape_dir, args)
 
+    #! DISABLING MESH RECONSTRUCTION FOR NOW (Not tested after the changes in the codebase)
     # utilize cost volume-based 3D reconstruction to generate textured 3D mesh
-    mesh_path = reconstruct(shape_dir, output_format=args.output_format, device_idx=args.gpu_idx, resolution=args.mesh_resolution)
-    print("Mesh saved to:", mesh_path)
+    # mesh_path = reconstruct(shape_dir, output_format=args.output_format, device_idx=args.gpu_idx, resolution=args.mesh_resolution)
+    # print("Mesh saved to:", mesh_path)
