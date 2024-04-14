@@ -202,13 +202,13 @@ def zero123_infer_v2(model, input_dir_path, start_idx=0, end_idx=12, indices=Non
     # delta_y_2 = [0, 0, -10, 10]
 
     # Use same 4 base views, but do more intermediate views here (using num_samples)
-    # We'll keep delta_y variation from to -20 to 20, but delta_x will vary from -50 to 50
-    delta_x_2 = np.linspace(-50, 50, num_samples)
+    # We'll keep delta_x variation from to -10 to 10, but delta_y will vary from -45 to 45
+    delta_x_2 = np.linspace(0, 10, num_samples)
     # expand delta_x_2 with a list of zeros
     delta_x_2 = np.concatenate([delta_x_2, np.zeros(num_samples)]).tolist()
 
-    delta_y_2 = np.linspace(-10, 10, num_samples)
-    delta_y_2 = np.concatenate([delta_y_2, np.zeros(num_samples)]).tolist()
+    delta_y_2 = np.linspace(-45, 45, num_samples)
+    delta_y_2 = np.concatenate([np.zeros(num_samples), delta_y_2]).tolist()
 
     infer_stage_2(model, save_path_8, save_path_8_2, delta_x_2, delta_y_2,
                   indices=indices if indices else list(range(start_idx,end_idx)),

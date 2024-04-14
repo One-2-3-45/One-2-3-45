@@ -153,3 +153,4 @@ if __name__ == "__main__":
     # utilize cost volume-based 3D reconstruction to generate textured 3D mesh
     # mesh_path = reconstruct(shape_dir, output_format=args.output_format, device_idx=args.gpu_idx, resolution=args.mesh_resolution)
     # print("Mesh saved to:", mesh_path)
+    print("Images saved to ", shape_dir)
