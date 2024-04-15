@@ -6,6 +6,9 @@ from utils.zero123_utils import init_model, predict_stage1_gradio, zero123_infer
 from utils.sam_utils import sam_init, sam_out_nosave
 from utils.utils import pred_bbox, image_preprocess_nosave, gen_poses, convert_mesh_format
 from elevation_estimate.estimate_wild_imgs import estimate_elev
+import sys
+
+sys.path.append("..")
 
 OUTPUT_MULTIPLIER = 10
 
@@ -131,7 +134,7 @@ def predice_multiview_dense(shape_dir, args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('--img_path', type=str, default="./demo/demo_examples/01_wild_hydrant.png", help='Path to the input image')
+    parser.add_argument('--img_path', type=str, default="./data/car_no_background.png", help='Path to the input image')
     parser.add_argument('--gpu_idx', type=int, default=0, help='GPU index')
     parser.add_argument('--half_precision', action='store_true', help='Use half precision')
     parser.add_argument('--mesh_resolution', type=int, default=256, help='Mesh resolution')
