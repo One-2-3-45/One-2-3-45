@@ -274,8 +274,9 @@ If you find our code helpful, please cite our paper:
 ```
 @article{liu2023one2345,
   title={One-2-3-45: Any single image to 3d mesh in 45 seconds without per-shape optimization},
-  author={Liu, Minghua and Xu, Chao and Jin, Haian and Chen, Linghao and Xu, Zexiang and Su, Hao and others},
-  journal={arXiv preprint arXiv:2306.16928},
-  year={2023}
+  author={Liu, Minghua and Xu, Chao and Jin, Haian and Chen, Linghao and Varma T, Mukund and Xu, Zexiang and Su, Hao},
+  journal={Advances in Neural Information Processing Systems},
+  volume={36},
+  year={2024}
 }
 ```
